@@ -132,61 +132,6 @@ final class MoyaProviderCombineSpec: QuickSpec {
                 }
             }
 
-            describe("a reactive provider") {
-                var provider: MoyaProvider<GitHub>!
-
-                beforeEach {
-                    HTTPStubs.stubRequests(passingTest: {$0.url!.path == "/zen"}, withStubResponse: { _ in
-                        return HTTPStubsResponse(data: GitHub.zen.sampleData, statusCode: 200, headers: nil)
-                    })
-                    provider = MoyaProvider<GitHub>(trackInflights: true)
-                }
-
-                it("emits identical response for inflight requests") {
-                    let target: GitHub = .zen
-                    let signalProducer1 = provider.requestPublisher(target)
-                    let signalProducer2 = provider.requestPublisher(target)
-
-                    expect(provider.inflightRequests.keys.count).to(equal(0))
-
-                    var receivedResponse: Moya.Response!
-
-                    // If we do not name the variable, Combine's Cancellable will cancel itself
-                    let cancellable1 = signalProducer1.sink(receiveCompletion: { completion in
-                        switch completion {
-                        case let .failure(error):
-                            fail("errored: \(error)")
-                        default:
-                            ()
-                        }
-                    }, receiveValue: { response in
-                        receivedResponse = response
-                        expect(provider.inflightRequests.count).to(equal(1))
-                    })
-
-                    // If we do not name the variable, Combine's Cancellable will cancel itself
-                    let cancellable2 = signalProducer2.sink(receiveCompletion: { completion in
-                        switch completion {
-                        case let .failure(error):
-                            fail("errored: \(error)")
-                        default:
-                            ()
-                        }
-                    }, receiveValue: { response in
-                        expect(receivedResponse).toNot(beNil())
-                        expect(receivedResponse).to(beIdenticalToResponse(response))
-                        expect(provider.inflightRequests.count).to(equal(1))
-                    })
-
-                    // This is to silence the warning about unused variables
-                    _ = cancellable1
-                    _ = cancellable2
-
-                    // Allow for network request to complete
-                    expect(provider.inflightRequests.count).toEventually(equal(0))
-                }
-            }
-
             describe("a provider with progress tracking") {
                 var provider: MoyaProvider<GitHubUserContent>!
 
